@@ -1,6 +1,8 @@
 package com.drone_project.drone.service;
 
 import com.drone_project.drone.exception.InsufficientBatteryException;
+import com.drone_project.drone.exception.MedicationsLoadedException;
+import com.drone_project.drone.exception.NoMedicationsLoadedException;
 import com.drone_project.drone.exception.OverloadedDroneException;
 import com.drone_project.drone.model.Drone;
 import com.drone_project.drone.model.Medication;
@@ -26,6 +28,7 @@ public class DroneService {
     private MedicationRepository medicationRepository;
 
     private final ConcurrentHashMap<String, Drone> deliveryQueue = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Drone> returnQueue = new ConcurrentHashMap<>();
 
     public Drone registerDrone(Drone drone) {
         drone.setWeightLimitBasedOnModel();
@@ -36,6 +39,7 @@ public class DroneService {
     public Drone getDroneInfo(String serialNumber) {
         return droneRepository.findBySerialNumber(serialNumber);
     }
+
 
     public void loadMedication(String serialNumber, Medication medication) {
         Drone drone = droneRepository.findBySerialNumber(serialNumber);
@@ -74,8 +78,11 @@ public class DroneService {
 
     public void completeDelivery(String serialNumber) {
         Drone drone = droneRepository.findBySerialNumber(serialNumber);
+        List<Medication> medications = medicationRepository.findByDrone(drone);
 
-        logger.info("Current state of drone {}: {}", serialNumber, drone.getState());
+        if (medications == null || medications.isEmpty()) {
+            throw new NoMedicationsLoadedException("Drone has no medications loaded. Cannot set to DELIVERING state.");
+        }
 
         if (drone.getState() != State.DELIVERING) {
             drone.setState(State.DELIVERING);
@@ -84,6 +91,21 @@ public class DroneService {
         }
 
         deliveryQueue.put(serialNumber, drone);
+    }
+
+    public void setAvailableDrones(String serialNumber) {
+        Drone drone = droneRepository.findBySerialNumber(serialNumber);
+        List<Medication> medications = medicationRepository.findByDrone(drone);
+        if(medications != null && !medications.isEmpty()) {
+            throw new MedicationsLoadedException("Drone has medication loaded and cannot be returned.");
+        }
+        if(drone.getState() != State.RETURNING) {
+            drone.setState(State.RETURNING);
+            droneRepository.save(drone);
+            logger.info("Drone {} state set to RETURNING", serialNumber);
+        }
+
+        returnQueue.put(serialNumber,drone);
     }
 
     public List<Drone> getAvailableDrones() {
@@ -95,7 +117,16 @@ public class DroneService {
         return drone.getBatteryCapacity();
     }
 
-    @Scheduled(fixedDelay = 5000)
+    public void unloadMedications(String serialNumber) {
+        Drone drone = droneRepository.findBySerialNumber(serialNumber);
+        List<Medication> medications = medicationRepository.findByDrone(drone);
+
+        medicationRepository.deleteAll(medications);
+        logger.info("All medications unloaded from drone {}", serialNumber);
+    }
+
+
+    @Scheduled(fixedDelay = 10000)
     public void processScheduledDeliveries() {
         for (String serialNumber : deliveryQueue.keySet()) {
             Drone drone = deliveryQueue.get(serialNumber);
@@ -103,12 +134,23 @@ public class DroneService {
                 int currentBattery = drone.getBatteryCapacity();
                 int reducedBattery = currentBattery - 10;
                 drone.setBatteryCapacity(reducedBattery);
-
                 drone.setState(State.DELIVERED);
                 droneRepository.save(drone);
-                logger.info("Drone {} state set to DELIVERED wit battery level {}", serialNumber, reducedBattery);
-
+                logger.info("Drone {} state set to DELIVERED with battery level {}", serialNumber, reducedBattery);
+                unloadMedications(serialNumber);
                 deliveryQueue.remove(serialNumber);
+            }
+        }
+    }
+
+    @Scheduled(fixedDelay = 10000)
+    public void processScheduledReturning(){
+        for(String serialNumber : returnQueue.keySet()) {
+            Drone drone = returnQueue.get(serialNumber);
+            if(drone !=null && drone.getState() == State.RETURNING) {
+                drone.setState(State.IDLE);
+                droneRepository.save(drone);
+                returnQueue.remove(serialNumber);
             }
         }
     }

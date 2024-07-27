@@ -1,6 +1,8 @@
 package com.drone_project.drone.controller;
 
 import com.drone_project.drone.exception.InsufficientBatteryException;
+import com.drone_project.drone.exception.MedicationsLoadedException;
+import com.drone_project.drone.exception.NoMedicationsLoadedException;
 import com.drone_project.drone.exception.OverloadedDroneException;
 import com.drone_project.drone.model.Drone;
 import com.drone_project.drone.model.Medication;
@@ -9,8 +11,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import javax.validation.Valid;
-import javax.validation.ConstraintViolationException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,10 +34,8 @@ public class DroneController {
         }
         return ResponseEntity.ok(drone);
     }
-
-
     @PostMapping("/{serialNumber}/load")
-    public ResponseEntity<String> loadMedication(@PathVariable String serialNumber, @Valid @RequestBody Medication medication) {
+    public ResponseEntity<String> loadMedication(@PathVariable String serialNumber, @RequestBody Medication medication) {
         try {
             droneService.loadMedication(serialNumber, medication);
             return ResponseEntity.ok("Medication loaded successfully");
@@ -56,13 +54,31 @@ public class DroneController {
 
     @PostMapping("/{serialNumber}/deliver")
     public ResponseEntity<String> completeDelivery(@PathVariable String serialNumber) {
-        droneService.completeDelivery(serialNumber);
-        return ResponseEntity.ok("Delivery completed successfully");
+        try {
+            droneService.completeDelivery(serialNumber);
+            return ResponseEntity.ok("Delivery completed successfully");
+        } catch (NoMedicationsLoadedException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("An unexpected error occurred.");
+        }
     }
 
     @GetMapping("/available")
     public ResponseEntity<List<Drone>> getAvailableDrones() {
         return ResponseEntity.ok(droneService.getAvailableDrones());
+    }
+
+    @PostMapping("/{serialNumber}/return")
+    public ResponseEntity<String> returnDrone(@PathVariable String serialNumber) {
+        try{
+            droneService.setAvailableDrones(serialNumber);
+            return ResponseEntity.ok("Drone returned successfully");
+        }catch (MedicationsLoadedException e){
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }catch(Exception e){
+            return ResponseEntity.status(500).body("An unexpected error occurred.");
+        }
     }
 
     @GetMapping("/{serialNumber}/battery")

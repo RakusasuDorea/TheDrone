@@ -33,8 +33,6 @@ public class Drone {
     @JsonManagedReference
     private List<Medication> medications;
 
-    // Getters and Setters
-
     @PrePersist
     @PreUpdate
     public void setWeightLimitBasedOnModel() {
