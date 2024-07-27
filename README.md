@@ -7,7 +7,7 @@ The Drone Delivery System is a Java application that manages drone-based deliver
 1.Clone the Repository
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/RakusasuDorea/TheDrone.git
 ```
 
 2.Navigate to the Project Directory
