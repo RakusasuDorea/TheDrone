@@ -79,7 +79,4 @@ public class Medication {
     public void setImage(String image) {
         this.image = image;
     }
-
-    //Getters and setters
-
 }
