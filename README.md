@@ -1,61 +1,127 @@
-# The Drone Delivery System
+# Drone Delivery System
 
-The Drone Delivery System is a Java application that manages drone-based delivery of medications. It provides RESTful APIs for interacting with drones, including registering drones, loading medications, and checking drone status.
+A REST API for managing a drone fleet and medication deliveries, built with Spring Boot.
 
-## Build Instructions
+## Tech Stack
 
-1.Clone the Repository
+- **Java 17**
+- **Spring Boot 3.3.2** — web, data JPA, validation
+- **PostgreSQL** — primary database
+- **Hibernate** — ORM with auto schema update
+- **Lombok** — boilerplate reduction (`@Data`, `@Slf4j`, `@RequiredArgsConstructor`)
+- **MapStruct** — compile-time DTO mapping
+- **SpringDoc OpenAPI** — Swagger UI
 
+## Architecture
+
+Layered architecture with three tiers:
+
+```
+Controller → Service → Repository
+```
+
+- **Controller** — handles HTTP requests and responses
+- **Service** — contains all business logic (battery checks, weight limits, state transitions)
+- **Repository** — database interaction via Spring Data JPA
+- **DTOs** — separate request/response models from internal entities
+- **Mappers** — MapStruct interfaces convert between entities and DTOs
+
+## Prerequisites
+
+- Java 17+
+- Maven
+- PostgreSQL running on `localhost:5432`
+
+## Setup
+
+**1. Clone the repository**
 ```bash
 git clone https://github.com/RakusasuDorea/TheDrone.git
+cd TheDrone
 ```
 
-2.Navigate to the Project Directory
+**2. Create the database**
 
+Using DBeaver, Postman, or any PostgreSQL client:
+```sql
+CREATE DATABASE drone_db;
+```
+
+**3. Configure credentials**
+
+Update `src/main/resources/application.properties` if your PostgreSQL password differs:
+```properties
+spring.datasource.password=your_password
+```
+
+**4. Build the project**
 ```bash
-cd drone
+mvn clean install -DskipTests
 ```
 
-3.Build the Project
-```bash
-mvn clean install
-```
-## Run Instructions
-
-1.Start the Application
-
-After building the project, you can start the application with:
-
+**5. Run the application**
 ```bash
 mvn spring-boot:run
 ```
-2.Access the Application
 
-The application will be available at `http://localhost:8080`.
+The application starts at `http://localhost:8080` and seeds the database with sample drones and medications on first run.
 
-3.Access the H2 Console
+## API Documentation
 
-If you want to view the database, you can access the H2 console at http://localhost:8080/h2-console. Use the following settings to log in:
+Swagger UI is available at:
+```
+http://localhost:8080/swagger-ui.html
+```
 
-•JDBC URL: `jdbc:h2:mem:testdb`
+OpenAPI JSON spec:
+```
+http://localhost:8080/v3/api-docs
+```
 
-•Username: sa
+## API Endpoints
 
-•Password: (leave blank)
+All endpoints are prefixed with `/api/v1/drones`.
 
-## Test Instructions
-1.Test it with POSTMAN
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/register` | Register a new drone |
+| `GET` | `/{serialNumber}` | Get drone info |
+| `GET` | `/available` | List all available (IDLE) drones |
+| `POST` | `/{serialNumber}/load` | Load a medication onto a drone |
+| `GET` | `/{serialNumber}/medications` | Get all medications on a drone |
+| `POST` | `/{serialNumber}/deliver` | Dispatch drone for delivery |
+| `POST` | `/{serialNumber}/return` | Return drone to IDLE state |
+| `GET` | `/{serialNumber}/battery` | Get battery level |
 
-[Click here](https://www.postman.com/bjhernz08/workspace/drone/collection/37012381-1ca65d6d-7076-47f7-9a7d-94ff22338c6b?action=share&creator=37012381) to fork the POSTMAN collection to test the APIs.
+## Drone States
 
-## Additional Notes
-•Ensure your environment meets the prerequisites: Java 17+ and Maven.
+```
+IDLE → LOADING → LOADED → DELIVERING → DELIVERED → RETURNING → IDLE
+```
 
-•The application uses H2 as an in-memory database and is preloaded with sample data.
+## Drone Models and Weight Limits
+
+| Model | Weight Limit |
+|-------|-------------|
+| Lightweight | 250g |
+| Middleweight | 500g |
+| Cruiserweight | 750g |
+| Heavyweight | 1000g |
+
+## Business Rules
+
+- Battery must be at or above **25%** to load medications
+- Total medication weight cannot exceed the drone's weight limit
+- A drone must have medications loaded before it can be dispatched
+- A drone cannot return if it still has medications loaded
+- Battery decreases by 10% on each delivery cycle
+
+## Running Tests
+
+```bash
+mvn test
+```
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-For more information about the MIT License, visit [ChooseALicense.com](https://choosealicense.com/licenses/mit/).
-
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
