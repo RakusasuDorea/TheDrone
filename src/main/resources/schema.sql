@@ -1,3 +1,26 @@
+-- Drones table
+CREATE TABLE IF NOT EXISTS drones (
+    id               BIGSERIAL    PRIMARY KEY,
+    serial_number    VARCHAR(100) NOT NULL UNIQUE,
+    model            VARCHAR(50)  NOT NULL,
+    battery_capacity INT          NOT NULL,
+    state            VARCHAR(20)  NOT NULL,
+    created_at       TIMESTAMP,
+    updated_at       TIMESTAMP
+);
+
+-- Medications table
+CREATE TABLE IF NOT EXISTS medications (
+    id         BIGSERIAL    PRIMARY KEY,
+    name       VARCHAR(100) NOT NULL,
+    weight     INT          NOT NULL,
+    code       VARCHAR(50)  NOT NULL UNIQUE,
+    image      VARCHAR(255),
+    drone_id   BIGINT REFERENCES drones (id),
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP
+);
+
 -- Seed drones
 INSERT INTO drones (serial_number, model, battery_capacity, state, created_at, updated_at)
 VALUES
