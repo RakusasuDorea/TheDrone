@@ -111,8 +111,12 @@ public class DroneService {
 
     public void setAvailableDrones(String serialNumber) {
         Drone drone = findDroneOrThrow(serialNumber);
-        List<Medication> medications = medicationRepository.findByDrone(drone);
 
+        if (drone.getState() != State.DELIVERED) {
+            throw new InvalidDroneStateException("Cannot return drone. Drone must be in DELIVERED state before returning. Current state: " + drone.getState() + ".");
+        }
+
+        List<Medication> medications = medicationRepository.findByDrone(drone);
         if (medications != null && !medications.isEmpty()) {
             throw new MedicationsLoadedException("Drone has medication loaded and cannot be returned.");
         }
