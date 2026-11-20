@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS medications (
 -- Seed drones
 INSERT INTO drones (serial_number, model, battery_capacity, state, created_at, updated_at)
 VALUES
-    ('DRONE001', 'Lightweight',   100, 'IDLE',    NOW(), NOW()),
+    ('DRONE001', 'Lightweight',   100, 'LOADING', NOW(), NOW()),
     ('DRONE002', 'Middleweight',   75, 'LOADING', NOW(), NOW()),
     ('DRONE003', 'Cruiserweight',  90, 'IDLE',    NOW(), NOW()),
     ('DRONE004', 'Heavyweight',    50, 'IDLE',    NOW(), NOW())
