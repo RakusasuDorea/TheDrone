@@ -5,6 +5,7 @@ import com.drone_project.drone.dto.DroneResponseDTO;
 import com.drone_project.drone.dto.MedicationRequestDTO;
 import com.drone_project.drone.dto.MedicationResponseDTO;
 import com.drone_project.drone.exception.DroneNotFoundException;
+import com.drone_project.drone.exception.InvalidDroneStateException;
 import com.drone_project.drone.exception.InsufficientBatteryException;
 import com.drone_project.drone.exception.MedicationsLoadedException;
 import com.drone_project.drone.exception.NoMedicationsLoadedException;
@@ -50,6 +51,10 @@ public class DroneService {
 
     public void loadMedication(String serialNumber, MedicationRequestDTO request) {
         Drone drone = findDroneOrThrow(serialNumber);
+
+        if (drone.getState() == State.DELIVERING || drone.getState() == State.DELIVERED || drone.getState() == State.RETURNING) {
+            throw new InvalidDroneStateException("Cannot load medication. Drone is currently in " + drone.getState() + " state.");
+        }
 
         if (drone.getBatteryCapacity() < 25) {
             throw new InsufficientBatteryException("Cannot load medication. Battery level too low.");

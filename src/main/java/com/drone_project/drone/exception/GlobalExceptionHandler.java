@@ -38,6 +38,11 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.BAD_REQUEST, "Medications Still Loaded", e.getMessage());
     }
 
+    @ExceptionHandler(InvalidDroneStateException.class)
+    public ResponseEntity<ErrorResponseDTO> handleInvalidDroneStateException(InvalidDroneStateException e) {
+        return build(HttpStatus.BAD_REQUEST, "Invalid Drone State", e.getMessage());
+    }
+
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ErrorResponseDTO> handleDataIntegrityViolationException(DataIntegrityViolationException e) {
         String message = e.getRootCause() != null ? e.getRootCause().getMessage() : e.getMessage();
