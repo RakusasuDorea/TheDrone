@@ -1,0 +1,247 @@
+@startuml Drone Delivery System - Low Level Design
+
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+skinparam linetype ortho
+
+' ─────────────────────────────────────────
+' ENUMS
+' ─────────────────────────────────────────
+package "model" {
+
+    enum Model {
+        Lightweight
+        Middleweight
+        Cruiserweight
+        Heavyweight
+        + getWeightLimit() : int
+    }
+
+    enum State {
+        IDLE
+        LOADING
+        LOADED
+        DELIVERING
+        DELIVERED
+        RETURNING
+    }
+
+    ' ─────────────────────────────────────
+    ' ENTITIES
+    ' ─────────────────────────────────────
+    class Drone {
+        - id : Long
+        - serialNumber : String
+        - batteryCapacity : int
+        - model : Model
+        - state : State
+        - medications : List<Medication>
+        - createdAt : LocalDateTime
+        - updatedAt : LocalDateTime
+        + getWeightLimit() : int
+    }
+
+    class Medication {
+        - id : Long
+        - name : String
+        - weight : int
+        - code : String
+        - image : String
+        - drone : Drone
+        - createdAt : LocalDateTime
+        - updatedAt : LocalDateTime
+    }
+
+    Drone "1" o-- "0..*" Medication : contains
+    Drone --> Model
+    Drone --> State
+}
+
+' ─────────────────────────────────────────
+' DTOs
+' ─────────────────────────────────────────
+package "dto" {
+
+    class DroneRequestDTO {
+        - serialNumber : String
+        - model : Model
+        - batteryCapacity : int
+    }
+
+    class DroneResponseDTO {
+        - id : Long
+        - serialNumber : String
+        - model : Model
+        - weightLimit : int
+        - batteryCapacity : int
+        - state : State
+        - medications : List<MedicationResponseDTO>
+        - createdAt : LocalDateTime
+        - updatedAt : LocalDateTime
+    }
+
+    class MedicationRequestDTO {
+        - name : String
+        - weight : int
+        - code : String
+        - image : String
+    }
+
+    class MedicationResponseDTO {
+        - id : Long
+        - name : String
+        - weight : int
+        - code : String
+        - image : String
+        - createdAt : LocalDateTime
+        - updatedAt : LocalDateTime
+    }
+
+    class ErrorResponseDTO {
+        - status : int
+        - error : String
+        - message : String
+        - timestamp : LocalDateTime
+    }
+
+    DroneResponseDTO *-- "0..*" MedicationResponseDTO
+}
+
+' ─────────────────────────────────────────
+' MAPPERS
+' ─────────────────────────────────────────
+package "mapper" {
+
+    interface DroneMapper {
+        + toEntity(dto : DroneRequestDTO) : Drone
+        + toResponseDTO(drone : Drone) : DroneResponseDTO
+    }
+
+    interface MedicationMapper {
+        + toEntity(dto : MedicationRequestDTO) : Medication
+        + toResponseDTO(medication : Medication) : MedicationResponseDTO
+    }
+
+    DroneMapper ..> Drone
+    DroneMapper ..> DroneRequestDTO
+    DroneMapper ..> DroneResponseDTO
+    DroneMapper ..> MedicationMapper
+
+    MedicationMapper ..> Medication
+    MedicationMapper ..> MedicationRequestDTO
+    MedicationMapper ..> MedicationResponseDTO
+}
+
+' ─────────────────────────────────────────
+' REPOSITORIES
+' ─────────────────────────────────────────
+package "repository" {
+
+    interface DroneRepository {
+        + findBySerialNumber(serialNumber : String) : Drone
+        + findByState(state : State) : List<Drone>
+    }
+
+    interface MedicationRepository {
+        + findByDrone(drone : Drone) : List<Medication>
+    }
+
+    DroneRepository ..> Drone
+    MedicationRepository ..> Medication
+}
+
+' ─────────────────────────────────────────
+' EXCEPTIONS
+' ─────────────────────────────────────────
+package "exception" {
+
+    class DroneNotFoundException
+    class InsufficientBatteryException
+    class OverloadedDroneException
+    class NoMedicationsLoadedException
+    class MedicationsLoadedException
+    class InvalidDroneStateException
+
+    class GlobalExceptionHandler {
+        + handleDroneNotFoundException() : ResponseEntity
+        + handleOverloadedDroneException() : ResponseEntity
+        + handleInsufficientBatteryException() : ResponseEntity
+        + handleNoMedicationsLoadedException() : ResponseEntity
+        + handleMedicationsLoadedException() : ResponseEntity
+        + handleInvalidDroneStateException() : ResponseEntity
+        + handleDataIntegrityViolationException() : ResponseEntity
+        + handleMethodArgumentNotValidException() : ResponseEntity
+        + handleGenericException() : ResponseEntity
+    }
+
+    GlobalExceptionHandler ..> DroneNotFoundException
+    GlobalExceptionHandler ..> InsufficientBatteryException
+    GlobalExceptionHandler ..> OverloadedDroneException
+    GlobalExceptionHandler ..> NoMedicationsLoadedException
+    GlobalExceptionHandler ..> MedicationsLoadedException
+    GlobalExceptionHandler ..> InvalidDroneStateException
+    GlobalExceptionHandler ..> ErrorResponseDTO
+}
+
+' ─────────────────────────────────────────
+' SERVICE
+' ─────────────────────────────────────────
+package "service" {
+
+    class DroneService {
+        - droneRepository : DroneRepository
+        - medicationRepository : MedicationRepository
+        - droneMapper : DroneMapper
+        - medicationMapper : MedicationMapper
+        - deliveryQueue : Map<String, Drone>
+        - returnQueue : Map<String, Drone>
+        + registerDrone(request : DroneRequestDTO) : DroneResponseDTO
+        + getDroneInfo(serialNumber : String) : DroneResponseDTO
+        + loadMedication(serialNumber : String, request : MedicationRequestDTO) : void
+        + getLoadedMedications(serialNumber : String) : List<MedicationResponseDTO>
+        + completeDelivery(serialNumber : String) : void
+        + setAvailableDrones(serialNumber : String) : void
+        + getAvailableDrones() : List<DroneResponseDTO>
+        + getBatteryLevel(serialNumber : String) : int
+        + processScheduledDeliveries() : void
+        + processScheduledReturning() : void
+        - findDroneOrThrow(serialNumber : String) : Drone
+    }
+
+    DroneService --> DroneRepository
+    DroneService --> MedicationRepository
+    DroneService --> DroneMapper
+    DroneService --> MedicationMapper
+    DroneService ..> DroneNotFoundException
+    DroneService ..> InsufficientBatteryException
+    DroneService ..> OverloadedDroneException
+    DroneService ..> NoMedicationsLoadedException
+    DroneService ..> MedicationsLoadedException
+    DroneService ..> InvalidDroneStateException
+}
+
+' ─────────────────────────────────────────
+' CONTROLLER
+' ─────────────────────────────────────────
+package "controller" {
+
+    class DroneController {
+        - droneService : DroneService
+        + registerDrone(request : DroneRequestDTO) : ResponseEntity<DroneResponseDTO>
+        + getDroneInfo(serialNumber : String) : ResponseEntity<DroneResponseDTO>
+        + loadMedication(serialNumber : String, request : MedicationRequestDTO) : ResponseEntity<String>
+        + getLoadedMedications(serialNumber : String) : ResponseEntity<List<MedicationResponseDTO>>
+        + completeDelivery(serialNumber : String) : ResponseEntity<String>
+        + getAvailableDrones() : ResponseEntity<List<DroneResponseDTO>>
+        + returnDrone(serialNumber : String) : ResponseEntity<String>
+        + getBatteryLevel(serialNumber : String) : ResponseEntity<Map>
+    }
+
+    DroneController --> DroneService
+    DroneController ..> DroneRequestDTO
+    DroneController ..> DroneResponseDTO
+    DroneController ..> MedicationRequestDTO
+    DroneController ..> MedicationResponseDTO
+}
+
+@enduml
